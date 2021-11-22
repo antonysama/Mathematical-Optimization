@@ -1,0 +1,48 @@
+$title Opt harvest, npv(harvest) & sensitivity to price (stumpage)
+$Optimising NPV of luumber harvest given sensitivity of price (stumpage fees)
+SETS
+   i /n,s,e/
+   loadcounter/lc1*lc4/
+   counter/c1*c4/;
+parameter report(loadcounter ,*),rep(loadcounter, counter,*),
+rep2 (Loadcounter , counter , i );
+SCALARS
+Elim
+cap /260/;
+TABLE data(i,*)
+      a     b      ac     bc   tmin  tmax
+   n  4     1.95   1.8    2     28    206
+   s  4.05  1.87   1.9    2.1   90    284
+   e  4.25  1.55   1.7    2.5   68    189;
+
+variables npv, npvc, t(i);
+equations
+eq1, eq2, eq3;
+eq1.. sum(i, data(i,'a')*t(i)*exp(data(i,'b'))) =e=npv ;
+eq2.. sum(i, t(i)) =l= cap;
+eq3.. sum(i, data(i, 'ac')*t(i)*exp(data(i,'bc'))) =e=npvc;
+
+t.lo(i) = data(i,'tmin');
+t.up(i) = data(i,'tmax');
+
+model qc /all/;
+loop(loadcounter,cap=260+ord(loadcounter)*20;
+solve qc us qcp max npv;
+report (Loadcounter , "minnpvc")= npvc.l;
+report (loadcounter , "maxnpv")= npv.l;
+solve qc us qcp max npvc;
+report (Loadcounter , "minnpv")= npv.l;
+report (loadcounter , "maxnpvc")= npvc.l;
+
+loop(counter,
+    Elim =(report(loadcounter, "maxnpvc")-report(loadcounter, "minnpvc"))*((ord(counter)-1)/(card(counter)
+    -1))+report(loadcounter, "minnpvc");
+    npvc.lo=Elim;
+    Solve qc us qcp max npv;
+    rep(loadcounter,counter, "npv")=npv.l;
+    rep(loadcounter,counter,"npvc")=npvc.l;
+    rep2(loadcounter,counter,i)=t.l(i);
+);
+npvc.up=inf;
+);
+display rep,rep2,report;

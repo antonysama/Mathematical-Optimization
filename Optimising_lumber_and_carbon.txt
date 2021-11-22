@@ -1,0 +1,47 @@
+$TITLE Opt harvest, c, npv(harvest) & npvc(w carbon)
+$Optimising harvest of forestry between the NPV of timber and NPV of carbon credits 
+
+SETS
+loadcounter/lc1*lc4/
+   counter/c1*c4/;
+parameter report(loadcounter ,*),rep(loadcounter, counter,*),
+rep2 (Loadcounter , counter , * );
+SCALARS
+Elim
+p/5/;
+
+variables q,c,t, npv, npvc;
+
+equations
+eq1, eq2, eq3, eq4;
+
+eq1.. q =e= 500*(1-exp(-0.02*t)**4);
+eq2.. c =e= 200*(1-exp(-0.02*t)**2.6);
+eq3.. npv =e= ((P*q)/(1+0.01)**t)-0.02;
+eq4.. npvc =e= (((P*q)/(1+0.01)**t)-0.02) + (((12*c)/(1+0.01)**t)-0.01);
+
+model nlp /all/;
+
+loop(loadcounter,
+p=4+ord(loadcounter)*1;
+solve nlp us nlp max npv;
+report (Loadcounter , "minnpvc")= npvc.l;
+report (loadcounter , "maxnpv")= npv.l;
+solve nlp us nlp max npvc;
+report (Loadcounter , "minnpv")= npv.l;
+report (loadcounter , "maxnpvc")= npvc.l;
+
+loop(counter,
+    Elim =(report(loadcounter, "maxnpvc")-report(loadcounter, "minnpvc"))*((ord(counter)-1)/(card(counter)
+    -1))+report(loadcounter, "minnpvc");
+    npvc.lo=Elim;
+    Solve nlp us nlp max npv;
+    rep(loadcounter,counter, "npv")=npv.l;
+    rep(loadcounter,counter,"npvc")=npvc.l;
+    rep(loadcounter,counter, "q")=q.l;
+    rep(loadcounter,counter,"c")=c.l;
+    rep2(loadcounter,counter,'t')=t.l;
+);
+npvc.up=inf;
+);
+display rep, rep2,report;

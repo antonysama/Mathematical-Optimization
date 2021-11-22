@@ -1,0 +1,117 @@
+$TITLE Optimize where pollinator access is lacking and where tree cover loss is relatively higher, under $47.6M Budget constraint, (w. C goals)
+$ Pareto optimization b/w carbon and cost minimizaton, given budget constraint
+
+SETS    s1 500 t p ha .. s2 2500 t p ha ..j soil zones
+   i / s1*s2 /
+   s /lo,hi/
+   j / br,db,bl,dg,gr /;
+   Scalar Cprice /1/; Scalar Cost_indx /-1.4/;
+Table cost(i,s,j)  cost $ p ha p yr
+          br       db      bl      dg      gr
+   s1.lo  3888     4270    4985    4886    4886
+   s1.hi  3888     4270    4985    4886    4886
+   s2.lo  15888   16270   16986   16987   16987
+   s2.hi  15888   16270   16986   16987   16987;
+Table pol(i,s,j) value of pollinator services $per ha
+          br       db      bl      dg      gr
+   s1.lo  1300    1040     260     260    260
+   s1.hi  1300    1040     260     260    260
+   s2.lo  1300    1040     260     260    260
+   s2.hi  1300    1040     260     260    260;
+Table cbn(i,s,j)  C sequestered(tC p ha yr)
+          br        db       bl        dg      gr
+   s1.lo  2.68      2.67    3.25      3.18    3.17
+   s1.hi  4.68      4.66    5.65      5.55    5.54
+   s2.lo  2.68      2.67    3.25      3.18    3.17
+   s2.hi  4.68      4.66    5.65      5.55    5.54   ;
+Table oppcost(i,s,j) cost $ p ha p yr
+          br       db      bl      dg      gr
+   s1.lo  888     1270    1985    1886    1886
+   s1.hi  888     1270    1985    1886    1886
+   s2.lo  888     1270    1985    1886    1886
+   s2.hi  888     1270    1985    1886    1886;
+Table tre(i,s,j) p ha p yr
+          br       db      bl      dg      gr
+   s1.lo  500     500      500     500     500
+   s1.hi  0         0       0       0       0
+   s2.lo  2500    2500     2500    2500    2500
+   s2.hi  0         0       0       0       0 ;
+Table limit(i,s,*) blunt limits ..ha of trees
+          Pmin     Pmax
+  s1.lo    0       4000
+  s1.hi    0       4000
+  s2.lo    0        800
+  s2.hi    0        800
+
+Variables of1, of2, x(i,s,j);
+Equations Eq_tre, Eq_pol, Eq_cbn, Eq_bgt,s1_ha,s2_ha,br_ha,db_ha,bl_ha,dg_ha,gr_ha, Eq_oppcost;
+*Eq_s1br, Eq_s2br, Eq_s1db, Eq_s2db,Eq_s1bl, Eq_s2bl,Eq_s1dg, Eq_s2dg, Eq_s1gr, Eq_s2gr,
+Eq_oppcost.. sum((i,s('lo'),j), x(i,s,j)*oppcost(i,s,j)*Cost_indx)=e=of1;
+Eq_tre..   sum((i,s('lo'),j), x(i,s,j)*tre(i,s,j))=g=1;
+Eq_pol..   sum((i,s('lo'),j), x(i,s,j)*pol(i,s,j))=g=1;
+
+Eq_cbn..   sum((i,s('lo'),j), x(i,s,j)*cbn(i,s,j)*Cprice)=e=of2;
+
+Eq_bgt..   sum((i,s('lo'),j), x(i,s,j)*cost(i,s,j)) =l= 47600000;
+s1_ha..    sum((i('s1'),s,j), x(i,s,j))=g=1;
+s2_ha..    sum((i('s2'),s,j), x(i,s,j))=g=1;
+br_ha..    sum((i,s,j('br')), x(i,s,j))=g=1;
+db_ha..    sum((i,s,j('db')), x(i,s,j))=g=1;
+bl_ha..    sum((i,s,j('bl')), x(i,s,j))=g=1;
+dg_ha..    sum((i,s,j('dg')), x(i,s,j))=g=1;
+gr_ha..    sum((i,s,j('gr')), x(i,s,j))=g=1;
+*Eq_s1br..  SUM((i('s1'),s,j('br')), x(i,s,j))=g=1;
+*Eq_s2br..  SUM((i('s2'),s,j('br')), x(i,s,j))=g=1;
+*Eq_s1db..  SUM((i('s1'),s,j('db')), x(i,s,j))=g=1;
+*Eq_s2db..  SUM((i('s2'),s,j('db')), x(i,s,j))=g=1;
+*Eq_s1bl..  SUM((i('s1'),s,j('bl')), x(i,s,j))=g=1;
+*Eq_s2bl..  SUM((i('s2'),s,j('bl')), x(i,s,j))=g=1;
+*Eq_s1dg..  SUM((i('s1'),s,j('dg')), x(i,s,j))=g=1;
+*Eq_s2dg..  SUM((i('s2'),s,j('dg')), x(i,s,j))=g=1;
+*Eq_s1gr..  SUM((i('s1'),s,j('gr')), x(i,s,j))=g=1;
+*Eq_s2gr..  SUM((i('s2'),s,j('gr')), x(i,s,j))=g=1;
+
+x.lo(i,s,j) = limit(i,s,'Pmin'); x.up(i,s,j) = limit(i,s,'Pmax');
+
+****----A loop that provides five 'pareto' optimum solutions:
+Scalar E;
+Model pareto / all /;
+Set counter / c1*c5 /;
+Parameter report(counter,*), ranges(*);
+
+solve pareto US nlp max of1;
+ranges('OF1max') = of1.l;
+ranges('OF2min') = of2.l;
+solve pareto US nlp max of2;
+ranges('OF2max') = of2.l;
+ranges('OF1min') = of1.l;
+
+loop(counter,
+   E = (ranges('OF2max') - ranges('OF2min'))*(ord(counter) - 1)/(card(counter) - 1) + ranges('OF2min');
+   of2.lo = E;
+   solve pareto US nlp max of1;
+   report(counter,'Trees/yr') = Eq_tre.l;
+   report(counter,'Pol $/yr') = Eq_pol.l;
+   report(counter,'Oppcost $/yr') = of1.l;
+   report(counter,'Cbn $/yr') = of2.l;
+*   report(counter,'Bgt') = Eq_bgt.l;
+   report(counter,'s1_ha') = s1_ha.l;
+   report(counter,'s2_ha') = s2_ha.l;
+   report(counter,'br_ha') = br_ha.l;
+   report(counter,'db_ha') = db_ha.l;
+   report(counter,'bl_ha') = bl_ha.l;
+   report(counter,'dg_ha') = dg_ha.l;
+   report(counter,'gr_ha') = gr_ha.l;
+
+*   report(counter,'s1br') = Eq_s1br.l;
+*   report(counter,'s2br') = Eq_s2br.l;
+*   report(counter,'s1db') = Eq_s1db.l;
+*   report(counter,'s2db') = Eq_s2db.l;
+*   report(counter,'s1bl') = Eq_s1bl.l;
+*   report(counter,'s2bl') = Eq_s2bl.l;
+*   report(counter,'s1dg') = Eq_s1dg.l;
+*   report(counter,'s2dg') = Eq_s2dg.l;
+*   report(counter,'s1gr') = Eq_s1gr.l;
+*   report(counter,'s2gr') = Eq_s2gr.l;
+);
+display report;
